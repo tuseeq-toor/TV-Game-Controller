@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TV Gamepad</string>
+    <string name="hid_notification_title">Phone is a TV gamepad</string>
+    <string name="hid_notification_text">Bluetooth HID is advertising. Pair this phone from Android TV.</string>
+</resources>
