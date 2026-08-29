@@ -139,6 +139,12 @@ object WebSocketFrames {
         return WebSocketFrame(opcode = opcode, payload = payload, fin = fin)
     }
 
+    fun text(message: String, masked: Boolean = false): ByteArray =
+        encode(WebSocketFrame(WebSocketFrame.OP_TEXT, message.toByteArray(Charsets.UTF_8)), masked)
+
+    fun binary(payload: ByteArray, masked: Boolean = false): ByteArray =
+        encode(WebSocketFrame(WebSocketFrame.OP_BINARY, payload), masked)
+
     private fun randomMask(): ByteArray = byteArrayOf(
         (Math.random() * 255).toInt().toByte(),
         (Math.random() * 255).toInt().toByte(),
@@ -146,9 +152,3 @@ object WebSocketFrames {
         (Math.random() * 255).toInt().toByte(),
     )
 }
-
-fun WebSocketFrames.text(message: String, masked: Boolean = false): ByteArray =
-    encode(WebSocketFrame(WebSocketFrame.OP_TEXT, message.toByteArray(Charsets.UTF_8)), masked)
-
-fun WebSocketFrames.binary(payload: ByteArray, masked: Boolean = false): ByteArray =
-    encode(WebSocketFrame(WebSocketFrame.OP_BINARY, payload), masked)
