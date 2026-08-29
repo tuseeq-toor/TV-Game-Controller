@@ -24,7 +24,7 @@ Two Android apps and a browser controller that speak the same protocol:
 - A / B / X / Y, L1 / R1, Select / Start / Home
 - L2 / R2 analog triggers
 - **Gyro look**: twist the phone to nudge the right stick; it recenters when you hold still (good for aiming)
-- **Tilt move**: lean the phone to hold a left-stick direction (good for driving / balance)
+- **Tilt move**: turn the phone like a steering wheel to hold a left-stick direction (good for driving / balance); however you hold the phone when the mode starts becomes the neutral pose
 - Recenter sets the current pose as neutral
 - Sensitivity, invert Y, deadzone, and haptics live under **Setup**
 

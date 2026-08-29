@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tvgamecontroller.protocol.Buttons
+import com.tvgamecontroller.tv.BtPadReading
 import com.tvgamecontroller.tv.HostUiState
 import com.tvgamecontroller.tv.game.OrbHuntSnapshot
 import com.tvgamecontroller.tv.ui.theme.Cyan
@@ -68,6 +69,7 @@ fun TvHome(state: HostUiState) {
         Column(Modifier.weight(0.58f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Playfield(state.game, Modifier.weight(1f).fillMaxWidth())
             InputTelemetry(state)
+            BtPadTester(state.btPad)
         }
     }
 }
@@ -163,6 +165,55 @@ private fun InputTelemetry(state: HostUiState) {
             contentAlignment = Alignment.Center,
         ) {
             Text("A", color = if (a) Navy else Color.White, fontWeight = FontWeight.Black)
+        }
+    }
+}
+
+/**
+ * Shows the raw axis and button values Android receives from a paired
+ * Bluetooth gamepad — exactly what games see. Use it to verify the phone's
+ * Bluetooth pad: press R2 and GAS/RY/RT should move to 1.00.
+ */
+@Composable
+private fun BtPadTester(pad: BtPadReading) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(Panel, RoundedCornerShape(20.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Text("BLUETOOTH PAD TESTER", color = TextDim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        if (!pad.seen) {
+            Text(
+                "Pair the phone over Bluetooth, then press any button or trigger — raw values the TV receives appear here.",
+                color = TextDim,
+                fontSize = 14.sp,
+            )
+        } else {
+            if (pad.deviceName.isNotEmpty() || pad.lastButton.isNotEmpty()) {
+                Text(
+                    buildString {
+                        if (pad.deviceName.isNotEmpty()) append(pad.deviceName)
+                        if (pad.lastButton.isNotEmpty()) {
+                            if (isNotEmpty()) append("   ·   ")
+                            append("last button ${pad.lastButton}")
+                        }
+                        if (pad.pressedButtons.isNotEmpty()) {
+                            append("   ·   held ${pad.pressedButtons.joinToString()}")
+                        }
+                    },
+                    color = Color.White,
+                    fontSize = 14.sp,
+                )
+            }
+            if (pad.axes.isNotEmpty()) {
+                Text(
+                    pad.axes.joinToString("  ") { (name, value) -> "$name ${fmt(value)}" },
+                    color = Cyan,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
     }
 }
