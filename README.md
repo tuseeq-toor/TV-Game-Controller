@@ -45,7 +45,7 @@ These apps are not on the Play Store yet. You install two APKs (or only the TV o
 | `tv/build/outputs/apk/debug/tv-debug.apk` | Android TV — app name **TV Gamepad Host** |
 | `mobile/build/outputs/apk/debug/mobile-debug.apk` | Phone — app name **TV Gamepad** |
 
-Download them from the repo **[Releases](https://github.com/tuseeq-toor/TV-Game-Controller/releases)** page (`TV_Gamepad_phone.apk` and `TV_Gamepad_Host_tv.apk`), or build them on a computer:
+Download them from the repo **[Releases](https://github.com/tuseeq-toor/TV-Game-Controller/releases)** page (`TV_Gamepad_phone.apk` and `TV_Gamepad_Host_tv.apk`). Every pull request also builds those APKs: open the PR → **Checks** → **Build APKs** → **TV_Gamepad_APKs**. Or build them on a computer:
 
 ```bash
 ./gradlew :tv:assembleDebug :mobile:assembleDebug
@@ -62,7 +62,7 @@ Download them from the repo **[Releases](https://github.com/tuseeq-toor/TV-Game-
 
 ### 2. Use your phone as the controller
 
-**Fastest (no phone APK):** scan the QR code on the TV. Chrome / the system browser opens the pad. Same Wi-Fi is required. Tap **Connect** and enter the PIN if asked.
+**Fastest (no phone APK):** scan the QR code on the TV. Chrome / Safari / the system browser opens the pad. Same Wi-Fi is required. Enter the PIN if asked and tap **Connect**. **Setup** holds the TV address, motion, and sensitivity. Use landscape, and press two controls at once — the page should not zoom.
 
 **Better (native pad + motion + haptics):**
 

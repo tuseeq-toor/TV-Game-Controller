@@ -58,3 +58,15 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
 
+val syncWebAssets by tasks.registering(Copy::class) {
+    from(rootProject.layout.projectDirectory.dir("web")) {
+        include("*.html", "*.css", "*.js")
+        exclude("*.mjs")
+    }
+    into(layout.projectDirectory.dir("src/main/assets/web"))
+}
+
+afterEvaluate {
+    tasks.named("preBuild").configure { dependsOn(syncWebAssets) }
+}
+
