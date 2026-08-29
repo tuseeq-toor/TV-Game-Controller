@@ -4,19 +4,23 @@ package com.tvgamecontroller.protocol
  * Bluetooth HID Game Pad report used when the phone advertises itself as a
  * real controller to Android TV.
  *
- * Report ID 1 payload (9 bytes, report ID is supplied separately):
+ * Report ID 1 payload (11 bytes, report ID is supplied separately):
  *  0-1 buttons (16-bit, Linux BTN_GAMEPAD order — not our internal mask)
  *  2   hat (low nibble 0-7 or 8=neutral) + 4 bits padding
  *  3   LX  X   0..255 (128 center)
  *  4   LY  Y   0..255 (128 center)
- *  5   LT  Z   0..255  (Android AXIS_Z / LTRIGGER)
+ *  5   LT  Z   0..255  (Android AXIS_Z)
  *  6   RX  Rx  0..255 (128 center)
  *  7   RY  Ry  0..255 (128 center)
- *  8   RT  Rz  0..255  (Android AXIS_RZ / RTRIGGER)
+ *  8   RT  Rz  0..255  (Android AXIS_RZ)
+ *  9   LT  Simulation Brake       0..255 (Android AXIS_BRAKE)
+ *  10  RT  Simulation Accelerator 0..255 (Android AXIS_GAS)
  *
- * Racing games on Android TV (Unity, Xbox-style) read R2 from Z/Rz, not from
- * Simulation Brake/Gas. The older descriptor put the right stick on Z/Rz, so
- * R2 accelerate never moved.
+ * Different games poll different trigger axes. Real Xbox pads over Bluetooth
+ * report triggers as Simulation Brake/Accelerator, which Android turns into
+ * AXIS_BRAKE/AXIS_GAS — the axes most racing games read for L2/R2. Others read
+ * Z/Rz. We report the triggers on all four axes (plus the digital L2/R2
+ * buttons) so every style of game sees them.
  *
  * Android Generic.kl maps sequential Game Pad buttons as:
  *  0 A, 1 B, 2 C, 3 X, 4 Y, 5 Z, 6 L1, 7 R1, 8 L2, 9 R2,
@@ -24,7 +28,7 @@ package com.tvgamecontroller.protocol
  */
 object HidGamepad {
     const val REPORT_ID: Byte = 0x01
-    const val REPORT_SIZE = 9
+    const val REPORT_SIZE = 11
 
     val REPORT_DESCRIPTOR: ByteArray = byteArrayOf(
         0x05, 0x01,        // Usage Page (Generic Desktop)
@@ -63,6 +67,14 @@ object HidGamepad {
         0x75, 0x08,
         0x95.toByte(), 0x06,
         0x81.toByte(), 0x02,
+        0x05, 0x02,        //   Usage Page (Simulation Controls)
+        0x09, 0xC5.toByte(), //   Usage (Brake)       → AXIS_BRAKE (left trigger)
+        0x09, 0xC4.toByte(), //   Usage (Accelerator) → AXIS_GAS (right trigger)
+        0x15, 0x00,
+        0x26, 0xFF.toByte(), 0x00,
+        0x75, 0x08,
+        0x95.toByte(), 0x02,
+        0x81.toByte(), 0x02,
         0xC0.toByte(),     // End Collection
     )
 
@@ -82,6 +94,8 @@ object HidGamepad {
             axisToByte(s.rightStickX),
             axisToByte(s.rightStickY),
             triggerToByte(rightTrigger),
+            triggerToByte(leftTrigger),
+            triggerToByte(rightTrigger),
         )
     }
 
@@ -94,10 +108,10 @@ object HidGamepad {
             hat = if (hat in 0..8) hat else Hat.NEUTRAL,
             leftStickX = byteToAxis(report[3]),
             leftStickY = byteToAxis(report[4]),
-            leftTrigger = byteToTrigger(report[5]),
+            leftTrigger = maxOf(byteToTrigger(report[5]), byteToTrigger(report[9])),
             rightStickX = byteToAxis(report[6]),
             rightStickY = byteToAxis(report[7]),
-            rightTrigger = byteToTrigger(report[8]),
+            rightTrigger = maxOf(byteToTrigger(report[8]), byteToTrigger(report[10])),
         )
     }
 
