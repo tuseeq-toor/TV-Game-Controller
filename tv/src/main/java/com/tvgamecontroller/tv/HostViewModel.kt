@@ -3,6 +3,9 @@ package com.tvgamecontroller.tv
 import android.app.Application
 import android.content.Context
 import android.net.wifi.WifiManager
+import android.view.InputDevice
+import android.view.KeyEvent
+import android.view.MotionEvent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvgamecontroller.protocol.GamepadState
@@ -22,6 +25,14 @@ import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.util.Locale
 
+data class BtPadReading(
+    val deviceName: String = "",
+    val axes: List<Pair<String, Float>> = emptyList(),
+    val pressedButtons: List<String> = emptyList(),
+    val lastButton: String = "",
+    val seen: Boolean = false,
+)
+
 data class HostUiState(
     val pin: String,
     val host: String,
@@ -31,6 +42,7 @@ data class HostUiState(
     val game: OrbHuntSnapshot,
     val connectUri: String,
     val webUrl: String,
+    val btPad: BtPadReading = BtPadReading(),
 )
 
 class HostViewModel(application: Application) : AndroidViewModel(application) {
@@ -92,6 +104,46 @@ class HostViewModel(application: Application) : AndroidViewModel(application) {
         server.rumble(0.3f, 0.8f, 70)
     }
 
+    /** Raw axis values from a paired Bluetooth/USB gamepad, shown in the on-screen tester. */
+    fun onPhysicalMotion(event: MotionEvent) {
+        val fromPad = event.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK ||
+            event.source and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD
+        if (!fromPad) return
+        val axes = TESTER_AXES.map { (name, axis) -> name to event.getAxisValue(axis) }
+        _ui.update {
+            it.copy(
+                btPad = it.btPad.copy(
+                    deviceName = event.device?.name.orEmpty(),
+                    axes = axes,
+                    seen = true,
+                ),
+            )
+        }
+    }
+
+    /** Raw button presses from a paired Bluetooth/USB gamepad, shown in the on-screen tester. */
+    fun onPhysicalKey(event: KeyEvent) {
+        if (!KeyEvent.isGamepadButton(event.keyCode) &&
+            event.keyCode !in KeyEvent.KEYCODE_DPAD_UP..KeyEvent.KEYCODE_DPAD_RIGHT
+        ) {
+            return
+        }
+        val name = KeyEvent.keyCodeToString(event.keyCode).removePrefix("KEYCODE_")
+        if (event.action == KeyEvent.ACTION_DOWN) heldButtons.add(name) else heldButtons.remove(name)
+        _ui.update {
+            it.copy(
+                btPad = it.btPad.copy(
+                    deviceName = event.device?.name.orEmpty().ifEmpty { it.btPad.deviceName },
+                    pressedButtons = heldButtons.toList().sorted(),
+                    lastButton = name,
+                    seen = true,
+                ),
+            )
+        }
+    }
+
+    private val heldButtons = linkedSetOf<String>()
+
     override fun onCleared() {
         advertiser.stop()
         server.stop()
@@ -99,6 +151,21 @@ class HostViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     companion object {
+        private val TESTER_AXES = listOf(
+            "X" to MotionEvent.AXIS_X,
+            "Y" to MotionEvent.AXIS_Y,
+            "Z" to MotionEvent.AXIS_Z,
+            "RZ" to MotionEvent.AXIS_RZ,
+            "RX" to MotionEvent.AXIS_RX,
+            "RY" to MotionEvent.AXIS_RY,
+            "LT" to MotionEvent.AXIS_LTRIGGER,
+            "RT" to MotionEvent.AXIS_RTRIGGER,
+            "BRAKE" to MotionEvent.AXIS_BRAKE,
+            "GAS" to MotionEvent.AXIS_GAS,
+            "HATX" to MotionEvent.AXIS_HAT_X,
+            "HATY" to MotionEvent.AXIS_HAT_Y,
+        )
+
         fun localAddress(context: Context): String {
             @Suppress("DEPRECATION")
             val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager

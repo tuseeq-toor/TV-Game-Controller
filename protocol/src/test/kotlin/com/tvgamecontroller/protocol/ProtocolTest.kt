@@ -213,35 +213,37 @@ class HidGamepadTest {
     }
 
     @Test
-    fun digitalL2R2AlsoFillAnalogTriggers() {
-        val left = HidGamepad.encode(GamepadState(buttons = Buttons.L2))
+    fun triggersAreDuplicatedOnRxRyAndBrakeGas() {
         val right = HidGamepad.encode(GamepadState(buttons = Buttons.R2))
-        assertEquals(255, left[5].toInt() and 0xFF)
-        assertEquals(0, left[8].toInt() and 0xFF)
-        assertEquals(255, right[8].toInt() and 0xFF)
-        assertEquals(0, right[5].toInt() and 0xFF)
-        assertTrue(HidGamepad.decode(left)!!.isPressed(Buttons.L2))
+        assertEquals(0, right[7].toInt() and 0xFF)   // Rx (LT) untouched
+        assertEquals(255, right[8].toInt() and 0xFF) // Ry (RT)
+        assertEquals(0, right[9].toInt() and 0xFF)   // Brake (LT) untouched
+        assertEquals(255, right[10].toInt() and 0xFF) // Gas (RT)
         assertTrue(HidGamepad.decode(right)!!.isPressed(Buttons.R2))
+
+        val analog = HidGamepad.encode(GamepadState(leftTrigger = 0.5f))
+        assertEquals(analog[7], analog[9])
+        val decoded = HidGamepad.decode(analog)!!
+        assertNear(0.5f, decoded.leftTrigger, 0.01f)
     }
 
     @Test
-    fun restReportKeepsTriggersAtZeroAndSticksCentered() {
+    fun restReportCentersSticksAndZeroesAllTriggerAxes() {
         val report = HidGamepad.encode(GamepadState())
-        assertEquals(128, report[3].toInt() and 0xFF)
-        assertEquals(128, report[4].toInt() and 0xFF)
-        assertEquals(0, report[5].toInt() and 0xFF)
-        assertEquals(128, report[6].toInt() and 0xFF)
-        assertEquals(128, report[7].toInt() and 0xFF)
-        assertEquals(0, report[8].toInt() and 0xFF)
+        assertEquals(HidGamepad.REPORT_SIZE, report.size)
+        for (i in 3..6) assertEquals(128, report[i].toInt() and 0xFF)
+        for (i in 7..10) assertEquals(0, report[i].toInt() and 0xFF)
     }
 
     @Test
-    fun descriptorDeclaresRxRyAndSixAxes() {
+    fun descriptorDeclaresStandardSticksAndBothTriggerStyles() {
         val desc = HidGamepad.REPORT_DESCRIPTOR.toList()
-        assertTrue(desc.contains(0x33.toByte()))
-        assertTrue(desc.contains(0x34.toByte()))
-        val lastReportCount = desc.indices.last { desc[it] == 0x95.toByte() }
-        assertEquals(0x06.toByte(), desc[lastReportCount + 1])
+        assertTrue(desc.contains(0x32.toByte())) // Z right stick X
+        assertTrue(desc.contains(0x35.toByte())) // Rz right stick Y
+        assertTrue(desc.contains(0x33.toByte())) // Rx trigger
+        assertTrue(desc.contains(0x34.toByte())) // Ry trigger
+        assertTrue(desc.contains(0xC5.toByte())) // Brake
+        assertTrue(desc.contains(0xC4.toByte())) // Gas
     }
 }
 

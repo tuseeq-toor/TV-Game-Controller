@@ -1,6 +1,8 @@
 package com.tvgamecontroller.tv
 
 import android.os.Bundle
+import android.view.KeyEvent
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -20,5 +22,15 @@ class MainActivity : ComponentActivity() {
                 TvHome(state)
             }
         }
+    }
+
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        viewModel.onPhysicalMotion(event)
+        return super.onGenericMotionEvent(event)
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        viewModel.onPhysicalKey(event)
+        return super.dispatchKeyEvent(event)
     }
 }
