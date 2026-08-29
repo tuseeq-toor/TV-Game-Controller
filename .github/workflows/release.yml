@@ -1,0 +1,47 @@
+name: Release APKs
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build debug APKs
+        run: |
+          printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
+          chmod +x gradlew
+          ./gradlew :mobile:assembleDebug :tv:assembleDebug --no-daemon
+
+      - name: Name release artifacts
+        run: |
+          mkdir -p dist
+          cp mobile/build/outputs/apk/debug/mobile-debug.apk dist/TV_Gamepad_phone.apk
+          cp tv/build/outputs/apk/debug/tv-debug.apk dist/TV_Gamepad_Host_tv.apk
+
+      - name: Upload APKs to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/TV_Gamepad_phone.apk
+            dist/TV_Gamepad_Host_tv.apk
+          generate_release_notes: true
+          draft: false
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

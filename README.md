@@ -45,7 +45,7 @@ These apps are not on the Play Store yet. You install two APKs (or only the TV o
 | `tv/build/outputs/apk/debug/tv-debug.apk` | Android TV — app name **TV Gamepad Host** |
 | `mobile/build/outputs/apk/debug/mobile-debug.apk` | Phone — app name **TV Gamepad** |
 
-Build them on a computer:
+Download them from the repo **[Releases](https://github.com/tuseeq-toor/TV-Game-Controller/releases)** page (`TV_Gamepad_phone.apk` and `TV_Gamepad_Host_tv.apk`), or build them on a computer:
 
 ```bash
 ./gradlew :tv:assembleDebug :mobile:assembleDebug
