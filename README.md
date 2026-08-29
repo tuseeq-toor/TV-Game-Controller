@@ -45,7 +45,7 @@ These apps are not on the Play Store yet. You install two APKs (or only the TV o
 | `tv/build/outputs/apk/debug/tv-debug.apk` | Android TV — app name **TV Gamepad Host** |
 | `mobile/build/outputs/apk/debug/mobile-debug.apk` | Phone — app name **TV Gamepad** |
 
-Download them from the repo **[Releases](https://github.com/tuseeq-toor/TV-Game-Controller/releases)** page (`TV_Gamepad_phone.apk` and `TV_Gamepad_Host_tv.apk`). Every pull request also builds those APKs: open the PR → **Checks** → **Build APKs** → **TV_Gamepad_APKs**. Or build them on a computer:
+Download them from the repo **[Releases](https://github.com/tuseeq-toor/TV-Game-Controller/releases)** page (`TV_Gamepad_phone.apk` and `TV_Gamepad_Host_tv.apk`). A new official release starts only when a `v*` git tag is pushed — changing `versionName` in Gradle is not enough. Every pull request also publishes a prerelease named **PR #N APKs**. Or build them on a computer:
 
 ```bash
 ./gradlew :tv:assembleDebug :mobile:assembleDebug
