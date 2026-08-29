@@ -5,7 +5,7 @@ package com.tvgamecontroller.protocol
  * real controller to Android TV.
  *
  * Report ID 1 payload (9 bytes, report ID is supplied separately):
- *  0-1 buttons (16-bit, bit0 = A)
+ *  0-1 buttons (16-bit, Linux BTN_GAMEPAD order — not our internal mask)
  *  2   hat (low nibble 0-7 or 8=neutral) + 4 bits padding
  *  3   LX  0..255 (128 center)
  *  4   LY  0..255 (128 center)
@@ -13,6 +13,10 @@ package com.tvgamecontroller.protocol
  *  6   RY  0..255 (128 center)
  *  7   LT  0..255
  *  8   RT  0..255
+ *
+ * Android Generic.kl maps sequential Game Pad buttons as:
+ *  0 A, 1 B, 2 C, 3 X, 4 Y, 5 Z, 6 L1, 7 R1, 8 L2, 9 R2,
+ *  10 Select, 11 Start, 12 Mode, 13 L3, 14 R3.
  */
 object HidGamepad {
     const val REPORT_ID: Byte = 0x01
@@ -66,8 +70,10 @@ object HidGamepad {
 
     fun encode(state: GamepadState): ByteArray {
         val s = state.clamped()
-        val buttons = s.buttons and 0xFFFF
+        val buttons = toHidButtons(s.buttons)
         val hat = if (s.hat in 0..7) s.hat else 8
+        val leftTrigger = if (s.leftTrigger > 0f) s.leftTrigger else if (s.isPressed(Buttons.L2)) 1f else 0f
+        val rightTrigger = if (s.rightTrigger > 0f) s.rightTrigger else if (s.isPressed(Buttons.R2)) 1f else 0f
         return byteArrayOf(
             (buttons and 0xFF).toByte(),
             ((buttons shr 8) and 0xFF).toByte(),
@@ -76,17 +82,17 @@ object HidGamepad {
             axisToByte(s.leftStickY),
             axisToByte(s.rightStickX),
             axisToByte(s.rightStickY),
-            triggerToByte(s.leftTrigger),
-            triggerToByte(s.rightTrigger),
+            triggerToByte(leftTrigger),
+            triggerToByte(rightTrigger),
         )
     }
 
     fun decode(report: ByteArray): GamepadState? {
         if (report.size < REPORT_SIZE) return null
-        val buttons = (report[0].toInt() and 0xFF) or ((report[1].toInt() and 0xFF) shl 8)
+        val hidButtons = (report[0].toInt() and 0xFF) or ((report[1].toInt() and 0xFF) shl 8)
         val hat = report[2].toInt() and 0x0F
         return GamepadState(
-            buttons = buttons,
+            buttons = fromHidButtons(hidButtons),
             hat = if (hat in 0..8) hat else Hat.NEUTRAL,
             leftStickX = byteToAxis(report[3]),
             leftStickY = byteToAxis(report[4]),
@@ -95,6 +101,52 @@ object HidGamepad {
             leftTrigger = byteToTrigger(report[7]),
             rightTrigger = byteToTrigger(report[8]),
         )
+    }
+
+    /**
+     * Internal [Buttons] bits → HID Game Pad bits that Android TV actually reads
+     * as L1/R1/L2/R2. Sending our internal mask raw made L1 look like Y.
+     */
+    fun toHidButtons(buttons: Int): Int {
+        var hid = 0
+        fun map(internal: Int, hidBit: Int) {
+            if (buttons and internal != 0) hid = hid or (1 shl hidBit)
+        }
+        map(Buttons.A, 0)
+        map(Buttons.B, 1)
+        map(Buttons.X, 3)
+        map(Buttons.Y, 4)
+        map(Buttons.L1, 6)
+        map(Buttons.R1, 7)
+        map(Buttons.L2, 8)
+        map(Buttons.R2, 9)
+        map(Buttons.SELECT, 10)
+        map(Buttons.START, 11)
+        map(Buttons.HOME, 12)
+        map(Buttons.L3, 13)
+        map(Buttons.R3, 14)
+        return hid
+    }
+
+    fun fromHidButtons(hid: Int): Int {
+        var buttons = 0
+        fun map(hidBit: Int, internal: Int) {
+            if (hid and (1 shl hidBit) != 0) buttons = buttons or internal
+        }
+        map(0, Buttons.A)
+        map(1, Buttons.B)
+        map(3, Buttons.X)
+        map(4, Buttons.Y)
+        map(6, Buttons.L1)
+        map(7, Buttons.R1)
+        map(8, Buttons.L2)
+        map(9, Buttons.R2)
+        map(10, Buttons.SELECT)
+        map(11, Buttons.START)
+        map(12, Buttons.HOME)
+        map(13, Buttons.L3)
+        map(14, Buttons.R3)
+        return buttons
     }
 
     fun descriptorHasApplicationCollection(): Boolean =

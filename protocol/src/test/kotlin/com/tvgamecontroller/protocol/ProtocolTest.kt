@@ -194,6 +194,34 @@ class HidGamepadTest {
         assertTrue(HidGamepad.descriptorHasApplicationCollection())
         assertTrue(HidGamepad.REPORT_DESCRIPTOR.size > 40)
     }
+
+    @Test
+    fun shouldersUseAndroidGamepadButtonSlots() {
+        fun hidMask(button: Int): Int {
+            val report = HidGamepad.encode(GamepadState(buttons = button))
+            return (report[0].toInt() and 0xFF) or ((report[1].toInt() and 0xFF) shl 8)
+        }
+        assertEquals(1 shl 0, hidMask(Buttons.A))
+        assertEquals(1 shl 1, hidMask(Buttons.B))
+        assertEquals(1 shl 3, hidMask(Buttons.X))
+        assertEquals(1 shl 4, hidMask(Buttons.Y))
+        assertEquals(1 shl 6, hidMask(Buttons.L1))
+        assertEquals(1 shl 7, hidMask(Buttons.R1))
+        assertEquals(1 shl 8, hidMask(Buttons.L2))
+        assertEquals(1 shl 9, hidMask(Buttons.R2))
+        assertEquals(1 shl 11, hidMask(Buttons.START))
+    }
+
+    @Test
+    fun digitalL2R2AlsoFillAnalogTriggers() {
+        val left = HidGamepad.encode(GamepadState(buttons = Buttons.L2))
+        val right = HidGamepad.encode(GamepadState(buttons = Buttons.R2))
+        assertEquals(255, left[7].toInt() and 0xFF)
+        assertEquals(0, left[8].toInt() and 0xFF)
+        assertEquals(255, right[8].toInt() and 0xFF)
+        assertTrue(HidGamepad.decode(left)!!.isPressed(Buttons.L2))
+        assertTrue(HidGamepad.decode(right)!!.isPressed(Buttons.R2))
+    }
 }
 
 class MotionMapperTest {
