@@ -120,40 +120,24 @@ fun ShoulderButton(
 ) {
     Box(
         modifier = modifier
-            .size(width = 72.dp, height = 34.dp)
+            .size(width = 84.dp, height = 44.dp)
             .background(
                 if (pressed) Color(0xFF1CE8C8) else Color(0xFF2A3354),
                 CircleShape,
             )
-            .pointerInput(analog) {
-                if (analog) {
-                    detectDragGestures(
-                        onDragStart = {
-                            onPressed(true)
-                            onAnalog(1f)
-                        },
-                        onDragEnd = {
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        onPressed(true)
+                        onAnalog(1f)
+                        try {
+                            awaitRelease()
+                        } finally {
                             onPressed(false)
                             onAnalog(0f)
-                        },
-                        onDragCancel = {
-                            onPressed(false)
-                            onAnalog(0f)
-                        },
-                        onDrag = { _, _ -> },
-                    )
-                } else {
-                    detectTapGestures(
-                        onPress = {
-                            onPressed(true)
-                            try {
-                                awaitRelease()
-                            } finally {
-                                onPressed(false)
-                            }
-                        },
-                    )
-                }
+                        }
+                    },
+                )
             },
         contentAlignment = Alignment.Center,
     ) {
