@@ -216,11 +216,32 @@ class HidGamepadTest {
     fun digitalL2R2AlsoFillAnalogTriggers() {
         val left = HidGamepad.encode(GamepadState(buttons = Buttons.L2))
         val right = HidGamepad.encode(GamepadState(buttons = Buttons.R2))
-        assertEquals(255, left[7].toInt() and 0xFF)
+        assertEquals(255, left[5].toInt() and 0xFF)
         assertEquals(0, left[8].toInt() and 0xFF)
         assertEquals(255, right[8].toInt() and 0xFF)
+        assertEquals(0, right[5].toInt() and 0xFF)
         assertTrue(HidGamepad.decode(left)!!.isPressed(Buttons.L2))
         assertTrue(HidGamepad.decode(right)!!.isPressed(Buttons.R2))
+    }
+
+    @Test
+    fun restReportKeepsTriggersAtZeroAndSticksCentered() {
+        val report = HidGamepad.encode(GamepadState())
+        assertEquals(128, report[3].toInt() and 0xFF)
+        assertEquals(128, report[4].toInt() and 0xFF)
+        assertEquals(0, report[5].toInt() and 0xFF)
+        assertEquals(128, report[6].toInt() and 0xFF)
+        assertEquals(128, report[7].toInt() and 0xFF)
+        assertEquals(0, report[8].toInt() and 0xFF)
+    }
+
+    @Test
+    fun descriptorDeclaresRxRyAndSixAxes() {
+        val desc = HidGamepad.REPORT_DESCRIPTOR.toList()
+        assertTrue(desc.contains(0x33.toByte()))
+        assertTrue(desc.contains(0x34.toByte()))
+        val lastReportCount = desc.indices.last { desc[it] == 0x95.toByte() }
+        assertEquals(0x06.toByte(), desc[lastReportCount + 1])
     }
 }
 

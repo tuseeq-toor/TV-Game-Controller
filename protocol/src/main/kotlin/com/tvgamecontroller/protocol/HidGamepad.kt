@@ -7,12 +7,16 @@ package com.tvgamecontroller.protocol
  * Report ID 1 payload (9 bytes, report ID is supplied separately):
  *  0-1 buttons (16-bit, Linux BTN_GAMEPAD order — not our internal mask)
  *  2   hat (low nibble 0-7 or 8=neutral) + 4 bits padding
- *  3   LX  0..255 (128 center)
- *  4   LY  0..255 (128 center)
- *  5   RX  0..255 (128 center)
- *  6   RY  0..255 (128 center)
- *  7   LT  0..255
- *  8   RT  0..255
+ *  3   LX  X   0..255 (128 center)
+ *  4   LY  Y   0..255 (128 center)
+ *  5   LT  Z   0..255  (Android AXIS_Z / LTRIGGER)
+ *  6   RX  Rx  0..255 (128 center)
+ *  7   RY  Ry  0..255 (128 center)
+ *  8   RT  Rz  0..255  (Android AXIS_RZ / RTRIGGER)
+ *
+ * Racing games on Android TV (Unity, Xbox-style) read R2 from Z/Rz, not from
+ * Simulation Brake/Gas. The older descriptor put the right stick on Z/Rz, so
+ * R2 accelerate never moved.
  *
  * Android Generic.kl maps sequential Game Pad buttons as:
  *  0 A, 1 B, 2 C, 3 X, 4 Y, 5 Z, 6 L1, 7 R1, 8 L2, 9 R2,
@@ -48,22 +52,16 @@ object HidGamepad {
         0x75, 0x04,        //   padding
         0x95.toByte(), 0x01,
         0x81.toByte(), 0x01, // Input (Const)
-        0x09, 0x30,        //   Usage (X)
+        0x09, 0x30,        //   Usage (X)  left stick
         0x09, 0x31,        //   Usage (Y)
-        0x09, 0x32,        //   Usage (Z)
-        0x09, 0x35,        //   Usage (Rz)
+        0x09, 0x32,        //   Usage (Z)  left trigger
+        0x09, 0x33,        //   Usage (Rx) right stick
+        0x09, 0x34,        //   Usage (Ry)
+        0x09, 0x35,        //   Usage (Rz) right trigger
         0x15, 0x00,
         0x26, 0xFF.toByte(), 0x00,
         0x75, 0x08,
-        0x95.toByte(), 0x04,
-        0x81.toByte(), 0x02,
-        0x05, 0x02,        //   Usage Page (Simulation Controls)
-        0x09, 0xC5.toByte(), // Usage (Brake)
-        0x09, 0xC4.toByte(), // Usage (Accelerator)
-        0x15, 0x00,
-        0x26, 0xFF.toByte(), 0x00,
-        0x75, 0x08,
-        0x95.toByte(), 0x02,
+        0x95.toByte(), 0x06,
         0x81.toByte(), 0x02,
         0xC0.toByte(),     // End Collection
     )
@@ -80,9 +78,9 @@ object HidGamepad {
             (hat and 0x0F).toByte(),
             axisToByte(s.leftStickX),
             axisToByte(s.leftStickY),
+            triggerToByte(leftTrigger),
             axisToByte(s.rightStickX),
             axisToByte(s.rightStickY),
-            triggerToByte(leftTrigger),
             triggerToByte(rightTrigger),
         )
     }
@@ -96,9 +94,9 @@ object HidGamepad {
             hat = if (hat in 0..8) hat else Hat.NEUTRAL,
             leftStickX = byteToAxis(report[3]),
             leftStickY = byteToAxis(report[4]),
-            rightStickX = byteToAxis(report[5]),
-            rightStickY = byteToAxis(report[6]),
-            leftTrigger = byteToTrigger(report[7]),
+            leftTrigger = byteToTrigger(report[5]),
+            rightStickX = byteToAxis(report[6]),
+            rightStickY = byteToAxis(report[7]),
             rightTrigger = byteToTrigger(report[8]),
         )
     }
