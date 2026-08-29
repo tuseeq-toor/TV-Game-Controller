@@ -97,6 +97,16 @@ export function createGame(canvas) {
     ctx.fillStyle = "#f4f7ff";
     ctx.font = `${18 * devicePixelRatio}px sans-serif`;
     ctx.fillText(`ORB HUNT   Score ${score}${combo > 1 ? `   Combo x${combo}` : ""}`, 24, 36 * devicePixelRatio);
+    const hud = document.querySelector("#score");
+    if (hud) hud.textContent = `Score ${score}`;
+    window.__orbHunt = {
+      score,
+      combo,
+      player: { ...player },
+      aim: { ...aim },
+      targets: targets.map((t) => ({ ...t })),
+      connected,
+    };
     ctx.fillStyle = "#9aa6c4";
     ctx.font = `${13 * devicePixelRatio}px sans-serif`;
     ctx.fillText(

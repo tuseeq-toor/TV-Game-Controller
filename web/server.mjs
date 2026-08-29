@@ -18,6 +18,11 @@ const types = {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://127.0.0.1:${port}`);
+  if (url.pathname === "/pin") {
+    res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+    res.end(JSON.stringify({ pin, port }));
+    return;
+  }
   let file = url.pathname === "/" ? "/index.html" : url.pathname;
   const full = path.normalize(path.join(here, file));
   if (!full.startsWith(here)) {

@@ -4,9 +4,13 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test protocol.test.mjs"
+    "test": "node --test protocol.test.mjs",
+    "verify": "node verify.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.1"
   }
 }

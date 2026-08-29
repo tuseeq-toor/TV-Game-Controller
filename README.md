@@ -61,7 +61,7 @@ npm install
 npm start
 ```
 
-Then open [http://127.0.0.1:9842/tv.html](http://127.0.0.1:9842/tv.html) and [http://127.0.0.1:9842/](http://127.0.0.1:9842/) in two windows. The on-screen pad drives Orb Hunt over the same WebSocket protocol the Android apps use.
+Then open [http://127.0.0.1:9842/demo.html](http://127.0.0.1:9842/demo.html) for a side-by-side TV + pad, or use `/tv.html` and `/` in two windows. The on-screen pad drives Orb Hunt over the same WebSocket protocol the Android apps use. On a keyboard: WASD move, IJKL aim, Space shoot.
 
 ## Protocol
 

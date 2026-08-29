@@ -123,6 +123,57 @@ document.querySelectorAll("[data-button]").forEach((el) => {
   });
 });
 
+const keyStick = { lx: 0, ly: 0, rx: 0, ry: 0 };
+const keyMap = {
+  KeyW: () => { keyStick.ly = -1; },
+  KeyS: () => { keyStick.ly = 1; },
+  KeyA: () => { keyStick.lx = -1; },
+  KeyD: () => { keyStick.lx = 1; },
+  ArrowUp: () => { dpad.up = true; syncHat(); },
+  ArrowDown: () => { dpad.down = true; syncHat(); },
+  ArrowLeft: () => { dpad.left = true; syncHat(); },
+  ArrowRight: () => { dpad.right = true; syncHat(); },
+  KeyI: () => { keyStick.ry = -1; },
+  KeyK: () => { keyStick.ry = 1; },
+  KeyJ: () => { keyStick.rx = -1; },
+  KeyL: () => { keyStick.rx = 1; },
+  Space: () => { pad.buttons |= Buttons.A; },
+  KeyU: () => { pad.buttons |= Buttons.Y; },
+  KeyH: () => { pad.buttons |= Buttons.X; },
+  KeyO: () => { pad.buttons |= Buttons.B; },
+};
+const keyUp = {
+  KeyW: () => { keyStick.ly = 0; },
+  KeyS: () => { keyStick.ly = 0; },
+  KeyA: () => { keyStick.lx = 0; },
+  KeyD: () => { keyStick.lx = 0; },
+  ArrowUp: () => { dpad.up = false; syncHat(); },
+  ArrowDown: () => { dpad.down = false; syncHat(); },
+  ArrowLeft: () => { dpad.left = false; syncHat(); },
+  ArrowRight: () => { dpad.right = false; syncHat(); },
+  KeyI: () => { keyStick.ry = 0; },
+  KeyK: () => { keyStick.ry = 0; },
+  KeyJ: () => { keyStick.rx = 0; },
+  KeyL: () => { keyStick.rx = 0; },
+  Space: () => { pad.buttons &= ~Buttons.A; },
+  KeyU: () => { pad.buttons &= ~Buttons.Y; },
+  KeyH: () => { pad.buttons &= ~Buttons.X; },
+  KeyO: () => { pad.buttons &= ~Buttons.B; },
+};
+window.addEventListener("keydown", (event) => {
+  if (event.repeat) return;
+  if (keyMap[event.code]) {
+    event.preventDefault();
+    keyMap[event.code]();
+  }
+});
+window.addEventListener("keyup", (event) => {
+  if (keyUp[event.code]) {
+    event.preventDefault();
+    keyUp[event.code]();
+  }
+});
+
 document.querySelector("#recenter").addEventListener("click", async () => {
   settings.pitch0 = sensors.pitch;
   if (window.DeviceMotionEvent?.requestPermission) {
@@ -151,7 +202,14 @@ window.addEventListener("deviceorientation", (event) => {
 
 function tick() {
   seq += 1;
-  const next = applyMotion({ ...pad, seq }, sensors, settings);
+  const next = applyMotion({
+    ...pad,
+    seq,
+    lx: pad.lx || keyStick.lx,
+    ly: pad.ly || keyStick.ly,
+    rx: pad.rx || keyStick.rx,
+    ry: pad.ry || keyStick.ry,
+  }, sensors, settings);
   ui.telemetry.textContent =
     `Motion ${settings.mode}  ·  L(${next.lx.toFixed(2)},${next.ly.toFixed(2)})  R(${next.rx.toFixed(2)},${next.ry.toFixed(2)})`;
   if (socket && socket.readyState === WebSocket.OPEN) {
