@@ -156,7 +156,7 @@ class PairingTest {
 
 class HidGamepadTest {
     @Test
-    fun reportIsNineBytesAndRoundTrips() {
+    fun reportRoundTrips() {
         val state = GamepadState(
             leftStickX = -1f,
             leftStickY = 1f,
@@ -217,11 +217,23 @@ class HidGamepadTest {
         val left = HidGamepad.encode(GamepadState(buttons = Buttons.L2))
         val right = HidGamepad.encode(GamepadState(buttons = Buttons.R2))
         assertEquals(255, left[5].toInt() and 0xFF)
+        assertEquals(255, left[9].toInt() and 0xFF)
         assertEquals(0, left[8].toInt() and 0xFF)
+        assertEquals(0, left[10].toInt() and 0xFF)
         assertEquals(255, right[8].toInt() and 0xFF)
+        assertEquals(255, right[10].toInt() and 0xFF)
         assertEquals(0, right[5].toInt() and 0xFF)
+        assertEquals(0, right[9].toInt() and 0xFF)
         assertTrue(HidGamepad.decode(left)!!.isPressed(Buttons.L2))
         assertTrue(HidGamepad.decode(right)!!.isPressed(Buttons.R2))
+    }
+
+    @Test
+    fun triggersAreDuplicatedOnGasAndBrakeAxes() {
+        val report = HidGamepad.encode(GamepadState(leftTrigger = 0.5f, rightTrigger = 1f))
+        assertEquals(report[5], report[9])
+        assertEquals(report[8], report[10])
+        assertEquals(255, report[10].toInt() and 0xFF)
     }
 
     @Test
@@ -233,19 +245,46 @@ class HidGamepadTest {
         assertEquals(128, report[6].toInt() and 0xFF)
         assertEquals(128, report[7].toInt() and 0xFF)
         assertEquals(0, report[8].toInt() and 0xFF)
+        assertEquals(0, report[9].toInt() and 0xFF)
+        assertEquals(0, report[10].toInt() and 0xFF)
     }
 
     @Test
-    fun descriptorDeclaresRxRyAndSixAxes() {
+    fun descriptorDeclaresRxRyAndSimulationTriggers() {
         val desc = HidGamepad.REPORT_DESCRIPTOR.toList()
         assertTrue(desc.contains(0x33.toByte()))
         assertTrue(desc.contains(0x34.toByte()))
-        val lastReportCount = desc.indices.last { desc[it] == 0x95.toByte() }
-        assertEquals(0x06.toByte(), desc[lastReportCount + 1])
+        // Simulation Controls page with Brake and Accelerator usages.
+        val bytes = HidGamepad.REPORT_DESCRIPTOR
+        var simulationPage = -1
+        for (i in 0 until bytes.size - 1) {
+            if (bytes[i] == 0x05.toByte() && bytes[i + 1] == 0x02.toByte()) simulationPage = i
+        }
+        assertTrue(simulationPage >= 0)
+        val after = bytes.drop(simulationPage).toList()
+        assertTrue(after.contains(0xC4.toByte()))
+        assertTrue(after.contains(0xC5.toByte()))
     }
 }
 
 class MotionMapperTest {
+    /** Gravity in device coordinates after turning the phone like a steering
+     *  wheel by [theta] radians (clockwise = steering right), starting from a
+     *  landscape rest pose where "up" sits along the device axis (restX, restY). */
+    private fun MotionMapper.applyWheel(restX: Float, restY: Float, theta: Float): GamepadState {
+        val cos = kotlin.math.cos(theta)
+        val sin = kotlin.math.sin(theta)
+        return apply(
+            state = GamepadState(),
+            gyroX = 0f,
+            gyroY = 0f,
+            gyroZ = 0f,
+            gravX = restX * cos - restY * sin,
+            gravY = restX * sin + restY * cos,
+            gravZ = 0f,
+        )
+    }
+
     @Test
     fun gyroLookMovesRightStickAndRecentersWhenStill() {
         val mapper = MotionMapper(MotionSettings(mode = MotionMode.GYRO_LOOK, sensitivity = 1f, deadzone = 0f))
@@ -254,9 +293,9 @@ class MotionMapperTest {
             gyroX = 0.4f,
             gyroY = -0.5f,
             gyroZ = 0f,
-            yawRad = 0f,
-            pitchRad = 0f,
-            rollRad = 0f,
+            gravX = 0f,
+            gravY = 0f,
+            gravZ = 1f,
         )
         assertTrue(moving.motionEnabled)
         assertTrue(moving.rightStickX < 0f)
@@ -267,27 +306,68 @@ class MotionMapperTest {
             gyroX = 0f,
             gyroY = 0f,
             gyroZ = 0f,
-            yawRad = 0f,
-            pitchRad = 0f,
-            rollRad = 0f,
+            gravX = 0f,
+            gravY = 0f,
+            gravZ = 1f,
         )
         assertEquals(0f, still.rightStickX, 0.001f)
         assertEquals(0f, still.rightStickY, 0.001f)
     }
 
     @Test
-    fun tiltMoveDrivesLeftStickFromRoll() {
-        val mapper = MotionMapper(MotionSettings(mode = MotionMode.TILT_MOVE, tiltSensitivity = 1f, deadzone = 0f))
-        val tilted = mapper.apply(
+    fun tiltSteersRelativeToLandscapeRestPose() {
+        val mapper = MotionMapper(MotionSettings(mode = MotionMode.TILT_MOVE, tiltSensitivity = 1.4f, deadzone = 0f))
+        // First frame at rest (landscape, top of phone to the left: device X
+        // points at the sky) captures the baseline — stick stays centered.
+        val rest = mapper.applyWheel(restX = 1f, restY = 0f, theta = 0f)
+        assertTrue(rest.motionEnabled)
+        assertEquals(0f, rest.leftStickX, 0.001f)
+
+        val right = mapper.applyWheel(restX = 1f, restY = 0f, theta = 0.4f)
+        assertTrue("expected steer right, got ${right.leftStickX}", right.leftStickX > 0.3f)
+
+        val left = mapper.applyWheel(restX = 1f, restY = 0f, theta = -0.4f)
+        assertTrue("expected steer left, got ${left.leftStickX}", left.leftStickX < -0.3f)
+
+        // Back at rest the stick returns to center.
+        val centered = mapper.applyWheel(restX = 1f, restY = 0f, theta = 0f)
+        assertEquals(0f, centered.leftStickX, 0.001f)
+    }
+
+    @Test
+    fun tiltWorksInBothLandscapeOrientations() {
+        // Top of the phone to the right: device X points at the ground.
+        val mapper = MotionMapper(MotionSettings(mode = MotionMode.TILT_MOVE, tiltSensitivity = 1.4f, deadzone = 0f))
+        mapper.applyWheel(restX = -1f, restY = 0f, theta = 0f)
+        val right = mapper.applyWheel(restX = -1f, restY = 0f, theta = 0.4f)
+        assertTrue("expected steer right, got ${right.leftStickX}", right.leftStickX > 0.3f)
+    }
+
+    @Test
+    fun recenterMovesTheRestPose() {
+        val mapper = MotionMapper(MotionSettings(mode = MotionMode.TILT_MOVE, tiltSensitivity = 1.4f, deadzone = 0f))
+        mapper.applyWheel(restX = 1f, restY = 0f, theta = 0f)
+        assertTrue(mapper.applyWheel(restX = 1f, restY = 0f, theta = 0.4f).leftStickX > 0.3f)
+        // Recenter while held at 0.4 rad: that pose becomes the new zero.
+        mapper.recenter()
+        mapper.applyWheel(restX = 1f, restY = 0f, theta = 0.4f)
+        assertEquals(0f, mapper.applyWheel(restX = 1f, restY = 0f, theta = 0.4f).leftStickX, 0.001f)
+    }
+
+    @Test
+    fun flatPhoneDoesNotSlamTheStick() {
+        val mapper = MotionMapper(MotionSettings(mode = MotionMode.TILT_MOVE, tiltSensitivity = 1.4f, deadzone = 0f))
+        val flat = mapper.apply(
             state = GamepadState(),
             gyroX = 0f,
             gyroY = 0f,
             gyroZ = 0f,
-            yawRad = 0f,
-            pitchRad = 0f,
-            rollRad = 0.8f,
+            gravX = 0.02f,
+            gravY = 0.01f,
+            gravZ = 0.999f,
         )
-        assertTrue(tilted.leftStickX > 0.5f)
+        assertEquals(0f, flat.leftStickX, 0.001f)
+        assertEquals(0f, flat.leftStickY, 0.001f)
     }
 
     @Test
@@ -298,9 +378,9 @@ class MotionMapperTest {
             gyroX = 2f,
             gyroY = 2f,
             gyroZ = 2f,
-            yawRad = 1f,
-            pitchRad = 1f,
-            rollRad = 1f,
+            gravX = 1f,
+            gravY = 0f,
+            gravZ = 0f,
         )
         assertFalse(out.motionEnabled)
         assertEquals(0.4f, out.leftStickX, 0.001f)
