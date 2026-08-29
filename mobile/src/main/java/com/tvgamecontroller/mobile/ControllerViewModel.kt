@@ -177,7 +177,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     fun setHaptics(value: Boolean) = _ui.update { it.copy(haptics = value) }
 
     fun recenter() {
-        mapper.recenter(motion.yaw, motion.pitch)
+        mapper.recenter()
         rumble(40)
     }
 
@@ -225,9 +225,9 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
             gyroX = motion.gyroX,
             gyroY = motion.gyroY,
             gyroZ = motion.gyroZ,
-            yawRad = motion.yaw,
-            pitchRad = motion.pitch,
-            rollRad = motion.roll,
+            gravX = motion.gravX,
+            gravY = motion.gravY,
+            gravZ = motion.gravZ,
         ).copy(
             accelX = motion.accelX,
             accelY = motion.accelY,
