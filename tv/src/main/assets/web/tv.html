@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TV Gamepad Host</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="tv-shell">
+    <section class="card">
+      <h1>TV Gamepad Host</h1>
+      <p class="muted">Open the controller page on your phone, on the same Wi-Fi as this TV.</p>
+      <div class="muted">PIN</div>
+      <div class="pin" id="pin">8472</div>
+      <p id="url" class="muted"></p>
+      <p id="clients" class="muted">Waiting for a controller…</p>
+      <p class="muted">Phone app: enter this address and PIN. Browser: open the controller URL and tap Connect.</p>
+    </section>
+    <section>
+      <div class="hud"><span>ORB HUNT</span><span id="score">Score 0</span></div>
+      <canvas id="play"></canvas>
+    </section>
+  </div>
+  <script type="module">
+    import { createGame } from "./game.js";
+    import { decodeBinary, parseState } from "./protocol.js";
+
+    const game = createGame(document.querySelector("#play"));
+    const pinInfo = await fetch("/pin").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const pin = pinInfo?.pin || String(1000 + Math.floor(Math.random() * 9000));
+    document.querySelector("#pin").textContent = pin;
+    const url = `${location.protocol}//${location.host}/index.html?pin=${pin}`;
+    document.querySelector("#url").textContent = url;
+
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const socket = new WebSocket(`${proto}://${location.host}/controller?role=tv`);
+    socket.binaryType = "arraybuffer";
+    socket.onmessage = (event) => {
+      if (typeof event.data !== "string") {
+        const state = decodeBinary(new Uint8Array(event.data));
+        if (state) {
+          game.ingest(state);
+          document.querySelector("#clients").textContent = "Controller connected";
+        }
+        return;
+      }
+      const msg = JSON.parse(event.data);
+      if (msg.type === "state") {
+        game.ingest(parseState(msg));
+        document.querySelector("#clients").textContent = "Controller connected";
+      }
+    };
+
+    window.addEventListener("storage", (event) => {
+      if (event.key === "tvgamepad.state" && event.newValue) {
+        game.ingest(JSON.parse(event.newValue));
+        document.querySelector("#clients").textContent = "Local controller connected";
+      }
+    });
+    window.addEventListener("message", (event) => {
+      if (event.data?.channel === "tvgamepad") game.ingest(event.data.state);
+    });
+  </script>
+</body>
+</html>

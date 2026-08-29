@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>TV Gamepad</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="controller">
+  <div class="top">
+    <div>
+      <div class="brand">TV Gamepad</div>
+      <div id="status" class="status">Not connected</div>
+    </div>
+    <div class="row">
+      <input id="host" placeholder="TV address" />
+      <input id="pin" placeholder="PIN" maxlength="4" style="width:72px" />
+      <select id="motion">
+        <option value="gyro">Gyro look</option>
+        <option value="tilt">Tilt move</option>
+        <option value="off">Motion off</option>
+      </select>
+      <input id="sensitivity" type="range" min="0.4" max="3" step="0.1" value="1.4" title="Sensitivity" />
+      <button id="recenter" class="ghost" type="button">Recenter</button>
+      <button id="connect" type="button">Connect</button>
+      <span class="status">WASD move · IJKL aim · Space shoot</span>
+    </div>
+  </div>
+  <div class="pad">
+    <div class="shoulders">
+      <button class="shoulder" data-button="L2" data-trigger="lt">L2</button>
+      <button class="shoulder" data-button="L1">L1</button>
+    </div>
+    <div></div>
+    <div class="shoulders right">
+      <button class="shoulder" data-button="R1">R1</button>
+      <button class="shoulder" data-button="R2" data-trigger="rt">R2</button>
+    </div>
+    <div id="leftStick" class="stick"><div class="knob"></div></div>
+    <div class="center-col">
+      <div class="dpad">
+        <div class="arm v"></div>
+        <div class="arm h"></div>
+        <button class="mini" data-hat="up" style="position:absolute;left:32px;top:0;width:54px">▲</button>
+        <button class="mini" data-hat="down" style="position:absolute;left:32px;bottom:0;width:54px">▼</button>
+        <button class="mini" data-hat="left" style="position:absolute;left:0;top:42px;width:40px">◀</button>
+        <button class="mini" data-hat="right" style="position:absolute;right:0;top:42px;width:40px">▶</button>
+      </div>
+      <div class="row">
+        <button class="mini" data-button="SELECT">SEL</button>
+        <button class="mini" data-button="START">START</button>
+        <button class="mini" data-button="HOME">HOME</button>
+      </div>
+    </div>
+    <div class="face">
+      <button data-button="Y" class="y">Y</button>
+      <button data-button="X" class="x">X</button>
+      <button data-button="B" class="b">B</button>
+      <button data-button="A" class="a">A</button>
+    </div>
+    <div></div>
+    <div></div>
+    <div id="rightStick" class="stick" style="grid-column:3"><div class="knob"></div></div>
+    <div id="telemetry" class="telemetry">Motion gyro</div>
+  </div>
+  <script type="module" src="./controller.js"></script>
+</body>
+</html>
