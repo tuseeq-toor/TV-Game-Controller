@@ -62,7 +62,7 @@ Download them from the repo **[Releases](https://github.com/tuseeq-toor/TV-Game-
 
 ### 2. Use your phone as the controller
 
-**Fastest (no phone APK):** scan the QR code on the TV. Chrome / the system browser opens the pad. Same Wi-Fi is required. Tap **Connect** and enter the PIN if asked.
+**Fastest (no phone APK):** scan the QR code on the TV. Chrome / Safari / the system browser opens the pad. Same Wi-Fi is required. Enter the PIN if asked and tap **Connect**. **Setup** holds the TV address, motion, and sensitivity. Use landscape, and press two controls at once — the page should not zoom.
 
 **Better (native pad + motion + haptics):**
 

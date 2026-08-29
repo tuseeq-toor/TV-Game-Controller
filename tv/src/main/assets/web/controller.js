@@ -8,6 +8,8 @@ const ui = {
   motion: document.querySelector("#motion"),
   sensitivity: document.querySelector("#sensitivity"),
   telemetry: document.querySelector("#telemetry"),
+  settings: document.querySelector("#settings"),
+  settingsToggle: document.querySelector("#settingsToggle"),
 };
 
 const pad = emptyState();
@@ -21,7 +23,29 @@ function setStatus(text, ok = false) {
   ui.status.classList.toggle("ok", ok);
 }
 
+function isFormField(target) {
+  return Boolean(target?.closest?.("input, select, textarea"));
+}
+
+function preventPageZoom(event) {
+  if (isFormField(event.target)) return;
+  if (event.cancelable) event.preventDefault();
+}
+
+document.addEventListener("gesturestart", preventPageZoom, { passive: false });
+document.addEventListener("gesturechange", preventPageZoom, { passive: false });
+document.addEventListener("gestureend", preventPageZoom, { passive: false });
+document.addEventListener("touchstart", (event) => {
+  if (event.touches.length > 1) preventPageZoom(event);
+}, { passive: false });
+document.addEventListener("touchmove", preventPageZoom, { passive: false });
+document.addEventListener("dblclick", preventPageZoom, { passive: false });
+
 function connect() {
+  if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+    socket.close();
+    return;
+  }
   const host = ui.host.value.trim() || location.hostname;
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const port = location.port || (proto === "wss" ? "443" : "9842");
@@ -29,6 +53,7 @@ function connect() {
   socket = new WebSocket(url);
   socket.binaryType = "arraybuffer";
   setStatus("Connecting…");
+  ui.connect.textContent = "Disconnect";
   socket.onopen = () => {
     socket.send(JSON.stringify({ type: "hello", role: "controller", name: navigator.userAgent.slice(0, 40), protocol: 1 }));
     socket.send(JSON.stringify({ type: "auth", pin: ui.pin.value.trim() }));
@@ -40,7 +65,10 @@ function connect() {
     if (msg.type === "error") setStatus(msg.message || "Server error");
     if (msg.type === "rumble" && navigator.vibrate) navigator.vibrate(msg.ms || 40);
   };
-  socket.onclose = () => setStatus("Disconnected");
+  socket.onclose = () => {
+    setStatus("Disconnected");
+    ui.connect.textContent = "Connect";
+  };
 }
 
 ui.connect.addEventListener("click", connect);
@@ -50,25 +78,36 @@ ui.motion.addEventListener("change", () => {
 ui.sensitivity.addEventListener("input", () => {
   settings.sensitivity = Number(ui.sensitivity.value);
 });
+ui.settingsToggle.addEventListener("click", () => {
+  const open = ui.settings.hasAttribute("hidden");
+  ui.settings.toggleAttribute("hidden", !open);
+  ui.settingsToggle.textContent = open ? "Hide" : "Setup";
+});
 
 function bindHold(el, onChange) {
+  let pointerId = null;
   const start = (event) => {
+    if (pointerId !== null) return;
     event.preventDefault();
+    pointerId = event.pointerId;
+    try { el.setPointerCapture(event.pointerId); } catch { /* some browsers reject synthetic pointers */ }
     el.classList.add("on");
     onChange(true);
   };
-  const end = () => {
+  const end = (event) => {
+    if (event.pointerId !== pointerId) return;
+    pointerId = null;
     el.classList.remove("on");
     onChange(false);
   };
   el.addEventListener("pointerdown", start);
   el.addEventListener("pointerup", end);
-  el.addEventListener("pointerleave", end);
   el.addEventListener("pointercancel", end);
 }
 
 function bindStick(el, left) {
   const knob = el.querySelector(".knob");
+  let pointerId = null;
   const emit = (x, y) => {
     if (left) {
       pad.lx = x;
@@ -89,13 +128,22 @@ function bindStick(el, left) {
     emit(dx * scale, dy * scale);
   };
   el.addEventListener("pointerdown", (event) => {
-    el.setPointerCapture(event.pointerId);
+    if (pointerId !== null) return;
+    event.preventDefault();
+    pointerId = event.pointerId;
+    try { el.setPointerCapture(event.pointerId); } catch { /* some browsers reject synthetic pointers */ }
     fromEvent(event);
   });
   el.addEventListener("pointermove", (event) => {
-    if (event.buttons) fromEvent(event);
+    if (event.pointerId !== pointerId) return;
+    event.preventDefault();
+    fromEvent(event);
   });
-  const reset = () => emit(0, 0);
+  const reset = (event) => {
+    if (event.pointerId !== pointerId) return;
+    pointerId = null;
+    emit(0, 0);
+  };
   el.addEventListener("pointerup", reset);
   el.addEventListener("pointercancel", reset);
 }
@@ -162,6 +210,7 @@ const keyUp = {
 };
 window.addEventListener("keydown", (event) => {
   if (event.repeat) return;
+  if (isFormField(event.target)) return;
   if (keyMap[event.code]) {
     event.preventDefault();
     keyMap[event.code]();
