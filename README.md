@@ -36,22 +36,54 @@ Two Android apps and a browser controller that speak the same protocol:
 2. **Bluetooth HID**  
    In the phone app, turn on **Bluetooth HID**. On the TV go to **Settings → Remotes & accessories → Pair accessory** and select the phone. Android TV then treats the phone as a standard gamepad, so Play Store games and emulators can use it. Gyro look still drives the right stick.
 
-## Install from Android Studio
+## Install on your phone and Android TV
 
-1. Open this folder in Android Studio (Ladybug / Koala or newer, JDK 17).
-2. Let Gradle sync. Install the Android 35 SDK if prompted.
-3. Run **tv** on your Android TV or TV emulator.
-4. Run **mobile** on your phone.
-5. On the phone tap **Setup**, pick the discovered TV (or type its IP), enter the PIN from the TV, tap **Connect**.
+These apps are not on the Play Store yet. You install two APKs (or only the TV one and use the phone browser).
 
-Sideload release APKs the same way you install any unknown-source app on the TV (USB, Send Files to TV, or `adb install`).
+| File | Device |
+| --- | --- |
+| `tv/build/outputs/apk/debug/tv-debug.apk` | Android TV — app name **TV Gamepad Host** |
+| `mobile/build/outputs/apk/debug/mobile-debug.apk` | Phone — app name **TV Gamepad** |
+
+Build them on a computer:
 
 ```bash
 ./gradlew :tv:assembleDebug :mobile:assembleDebug
-# outputs:
-# tv/build/outputs/apk/debug/tv-debug.apk
-# mobile/build/outputs/apk/debug/mobile-debug.apk
 ```
+
+### 1. Put the TV app on the TV
+
+1. Copy `tv-debug.apk` onto the TV. Easy options:
+   - USB stick
+   - Send it from your phone with **Send files to TV** / Nearby Share
+   - On a computer: `adb connect <tv-ip>` then `adb install tv-debug.apk`
+2. On the TV, allow apps from unknown sources if it asks.
+3. Open **TV Gamepad Host**. Leave that screen up. Note the **PIN** and Wi-Fi address.
+
+### 2. Use your phone as the controller
+
+**Fastest (no phone APK):** scan the QR code on the TV. Chrome / the system browser opens the pad. Same Wi-Fi is required. Tap **Connect** and enter the PIN if asked.
+
+**Better (native pad + motion + haptics):**
+
+1. Copy `mobile-debug.apk` to the phone and open it.
+2. Allow **Install unknown apps** for Files / Chrome / Drive.
+3. Open **TV Gamepad**. Allow Bluetooth / notifications if prompted.
+4. Tap **Setup**, pick the TV or type its address, enter the PIN, tap **Connect**.
+
+You should now be able to move and shoot in **Orb Hunt** on the TV.
+
+### 3. Play other TV games (Bluetooth)
+
+Wi-Fi mode talks to the host app. For Play Store games and emulators:
+
+1. In the phone app, turn on **Bluetooth HID**.
+2. On the TV: **Settings → Remotes & accessories → Pair accessory**.
+3. Select the phone. Android TV treats it as a normal gamepad. Gyro look still drives the right stick.
+
+### Android Studio
+
+Open this folder (Ladybug / Koala or newer, JDK 17), sync Gradle, run **tv** on the TV and **mobile** on the phone.
 
 ## Browser playground (no Android device required)
 
