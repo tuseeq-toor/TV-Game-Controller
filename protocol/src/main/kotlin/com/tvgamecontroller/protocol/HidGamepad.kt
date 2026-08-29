@@ -4,23 +4,24 @@ package com.tvgamecontroller.protocol
  * Bluetooth HID Game Pad report used when the phone advertises itself as a
  * real controller to Android TV.
  *
- * Report ID 1 payload (11 bytes, report ID is supplied separately):
- *  0-1 buttons (16-bit, Linux BTN_GAMEPAD order — not our internal mask)
- *  2   hat (low nibble 0-7 or 8=neutral) + 4 bits padding
- *  3   LX  X   0..255 (128 center)
- *  4   LY  Y   0..255 (128 center)
- *  5   LT  Z   0..255  (Android AXIS_Z)
- *  6   RX  Rx  0..255 (128 center)
- *  7   RY  Ry  0..255 (128 center)
- *  8   RT  Rz  0..255  (Android AXIS_RZ)
- *  9   LT  Simulation Brake       0..255 (Android AXIS_BRAKE)
- *  10  RT  Simulation Accelerator 0..255 (Android AXIS_GAS)
+ * Games disagree on where triggers live: Xbox-over-Bluetooth pads expose them
+ * as Brake/Gas, DualShock exposes them as Rx/Ry, and plenty of engines only
+ * poll one of those. So this report keeps the sticks on the axes Android
+ * expects from a generic pad (left = X/Y, right = Z/Rz) and duplicates each
+ * analog trigger on BOTH Rx/Ry and Brake/Gas, plus digital L2/R2 buttons.
+ * Whichever axis a game reads, the value is there.
  *
- * Different games poll different trigger axes. Real Xbox pads over Bluetooth
- * report triggers as Simulation Brake/Accelerator, which Android turns into
- * AXIS_BRAKE/AXIS_GAS — the axes most racing games read for L2/R2. Others read
- * Z/Rz. We report the triggers on all four axes (plus the digital L2/R2
- * buttons) so every style of game sees them.
+ * Report ID 1 payload (11 bytes, report ID supplied separately):
+ *  0-1  buttons (16-bit, Linux BTN_GAMEPAD order — not our internal mask)
+ *  2    hat (low nibble 0-7 or 8=neutral) + 4 bits padding
+ *  3    X    left stick X   0..255 (128 center)
+ *  4    Y    left stick Y   0..255 (128 center)
+ *  5    Z    right stick X  0..255 (128 center)  → Android AXIS_Z
+ *  6    Rz   right stick Y  0..255 (128 center)  → Android AXIS_RZ
+ *  7    Rx   left trigger   0..255               → Android AXIS_RX
+ *  8    Ry   right trigger  0..255               → Android AXIS_RY
+ *  9    Brake left trigger  0..255               → Android AXIS_BRAKE
+ *  10   Gas  right trigger  0..255               → Android AXIS_GAS
  *
  * Android Generic.kl maps sequential Game Pad buttons as:
  *  0 A, 1 B, 2 C, 3 X, 4 Y, 5 Z, 6 L1, 7 R1, 8 L2, 9 R2,
@@ -56,20 +57,20 @@ object HidGamepad {
         0x75, 0x04,        //   padding
         0x95.toByte(), 0x01,
         0x81.toByte(), 0x01, // Input (Const)
-        0x09, 0x30,        //   Usage (X)  left stick
-        0x09, 0x31,        //   Usage (Y)
-        0x09, 0x32,        //   Usage (Z)  left trigger
-        0x09, 0x33,        //   Usage (Rx) right stick
-        0x09, 0x34,        //   Usage (Ry)
-        0x09, 0x35,        //   Usage (Rz) right trigger
+        0x09, 0x30,        //   Usage (X)  left stick X
+        0x09, 0x31,        //   Usage (Y)  left stick Y
+        0x09, 0x32,        //   Usage (Z)  right stick X
+        0x09, 0x35,        //   Usage (Rz) right stick Y
+        0x09, 0x33,        //   Usage (Rx) left trigger (DualShock style)
+        0x09, 0x34,        //   Usage (Ry) right trigger (DualShock style)
         0x15, 0x00,
         0x26, 0xFF.toByte(), 0x00,
         0x75, 0x08,
         0x95.toByte(), 0x06,
         0x81.toByte(), 0x02,
         0x05, 0x02,        //   Usage Page (Simulation Controls)
-        0x09, 0xC5.toByte(), //   Usage (Brake)       → AXIS_BRAKE (left trigger)
-        0x09, 0xC4.toByte(), //   Usage (Accelerator) → AXIS_GAS (right trigger)
+        0x09, 0xC5.toByte(), // Usage (Brake) left trigger (Xbox BT style)
+        0x09, 0xC4.toByte(), // Usage (Accelerator) right trigger (Xbox BT style)
         0x15, 0x00,
         0x26, 0xFF.toByte(), 0x00,
         0x75, 0x08,
@@ -84,18 +85,20 @@ object HidGamepad {
         val hat = if (s.hat in 0..7) s.hat else 8
         val leftTrigger = if (s.leftTrigger > 0f) s.leftTrigger else if (s.isPressed(Buttons.L2)) 1f else 0f
         val rightTrigger = if (s.rightTrigger > 0f) s.rightTrigger else if (s.isPressed(Buttons.R2)) 1f else 0f
+        val lt = triggerToByte(leftTrigger)
+        val rt = triggerToByte(rightTrigger)
         return byteArrayOf(
             (buttons and 0xFF).toByte(),
             ((buttons shr 8) and 0xFF).toByte(),
             (hat and 0x0F).toByte(),
             axisToByte(s.leftStickX),
             axisToByte(s.leftStickY),
-            triggerToByte(leftTrigger),
             axisToByte(s.rightStickX),
             axisToByte(s.rightStickY),
-            triggerToByte(rightTrigger),
-            triggerToByte(leftTrigger),
-            triggerToByte(rightTrigger),
+            lt,
+            rt,
+            lt,
+            rt,
         )
     }
 
@@ -108,9 +111,9 @@ object HidGamepad {
             hat = if (hat in 0..8) hat else Hat.NEUTRAL,
             leftStickX = byteToAxis(report[3]),
             leftStickY = byteToAxis(report[4]),
-            leftTrigger = maxOf(byteToTrigger(report[5]), byteToTrigger(report[9])),
-            rightStickX = byteToAxis(report[6]),
-            rightStickY = byteToAxis(report[7]),
+            rightStickX = byteToAxis(report[5]),
+            rightStickY = byteToAxis(report[6]),
+            leftTrigger = maxOf(byteToTrigger(report[7]), byteToTrigger(report[9])),
             rightTrigger = maxOf(byteToTrigger(report[8]), byteToTrigger(report[10])),
         )
     }
